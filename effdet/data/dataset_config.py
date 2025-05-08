@@ -60,6 +60,30 @@ class Voc2007Cfg(VocCfg):
         #test=dict(img_dir='JPEGImages')
     ))
 
+# 2025-05-08 dasom Voc2002007Cfg를 참고해 pnid 데이터를 처리할 커스텀 데이터 셋 작성
+@dataclass
+class PnIdCfg:
+    variant: str = None
+    parser: str = 'pnid'
+    num_classes: int = 80
+    img_filename: str = '%s.jpg'
+    splits: Dict[str, dict] = None
+@dataclass
+class PnId250508v1Cfg(PnIdCfg):
+    name: str = 'PNID250508v1'
+    parser: str = '250508v1'
+    splits: Dict[str, dict] = field(default_factory=lambda: dict(
+        train=dict(
+            split_filename='PNID250508v1/ImageSets/Main/train_250508v1.txt',
+            ann_filename='PNID250508v1/Annotations/%s.xml',
+            img_dir='PNID250508v1/JPEGImages', ),
+        val=dict(
+            split_filename='PNID250508v1/ImageSets/Main/val_250508v1.txt',
+            ann_filename='PNID250508v1/Annotations/%s.xml',
+            img_dir='PNID250508v1/JPEGImages'),
+        #test=dict(img_dir='JPEGImages')
+    ))
+
 
 @dataclass
 class Voc2012Cfg(VocCfg):

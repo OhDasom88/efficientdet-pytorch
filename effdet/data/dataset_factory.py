@@ -92,6 +92,38 @@ def create_dataset(name, root, splits=('train', 'val')):
                 data_dir=root / Path(split_cfg['img_dir']),
                 parser=create_parser(dataset_cfg.parser, cfg=parser_cfg)
             )
+    # 2025-05-08 dasom pnid 데이터를 처리할 커스텀 데이터 셋 작성
+    elif name.startswith('pnid'):
+        if '250508v1' in name:
+            dataset_cfg = PnId250508v1Cfg()
+        else:
+            dataset_cfg = Voc2012Cfg()
+        for s in splits:
+            if s not in dataset_cfg.splits:
+                raise RuntimeError(f'{s} split not found in config')
+            split_cfg = dataset_cfg.splits[s]
+            if isinstance(split_cfg['split_filename'], (tuple, list)):
+                assert len(split_cfg['split_filename']) == len(split_cfg['ann_filename'])
+                parser = None
+                for sf, af, id in zip(
+                        split_cfg['split_filename'], split_cfg['ann_filename'], split_cfg['img_dir']):
+                    parser_cfg = VocParserCfg(
+                        split_filename=root / sf,
+                        ann_filename=os.path.join(root, af),
+                        img_filename=os.path.join(id, dataset_cfg.img_filename))
+                    if parser is None:
+                        parser = create_parser(dataset_cfg.parser, cfg=parser_cfg)
+                    else:
+                        other_parser = create_parser(dataset_cfg.parser, cfg=parser_cfg)
+                        parser.merge(other=other_parser)
+            else:
+                parser_cfg = PnId250508v1ParserCfg(
+                    split_filename=root / split_cfg['split_filename'],
+                    ann_filename=os.path.join(root, split_cfg['ann_filename']),
+                    img_filename=os.path.join(split_cfg['img_dir'], dataset_cfg.img_filename),
+                )
+                parser = create_parser(dataset_cfg.parser, cfg=parser_cfg)
+            datasets[s] = dataset_cls(data_dir=root, parser=parser)
     else:
         assert False, f'Unknown dataset parser ({name})'
 
