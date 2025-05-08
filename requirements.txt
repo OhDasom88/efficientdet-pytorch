@@ -8,3 +8,9 @@ numpy
 pycocotools>=2.0.2
 
 omegaconf>=2.0
+
+# 2025-05-07 dasom
+pandas
+
+# 2025-05-07 dasom
+wandb

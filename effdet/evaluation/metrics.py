@@ -18,7 +18,9 @@ def compute_precision_recall(scores, labels, num_gt):
     if not isinstance(labels, np.ndarray) or len(labels.shape) != 1:
         raise ValueError("labels must be single dimension numpy array")
 
-    if labels.dtype != np.float_ and labels.dtype != np.bool_:
+    # 250507 dasom
+    # if labels.dtype != np.float_ and labels.dtype != np.bool_:
+    if labels.dtype != np.float64 and labels.dtype != np.bool_:
         raise ValueError("labels type must be either bool or float")
 
     if not isinstance(scores, np.ndarray) or len(scores.shape) != 1:
@@ -64,7 +66,9 @@ def compute_average_precision(precision, recall):
 
     if not isinstance(precision, np.ndarray) or not isinstance(recall, np.ndarray):
         raise ValueError("precision and recall must be numpy array")
-    if precision.dtype != np.float_ or recall.dtype != np.float_:
+    # 2025-05-07 dasom
+    # if precision.dtype != np.float_ or recall.dtype != np.float_:
+    if precision.dtype != np.float64 or recall.dtype != np.float64:
         raise ValueError("input must be float numpy array.")
     if len(precision) != len(recall):
         raise ValueError("precision and recall must be of the same size.")
