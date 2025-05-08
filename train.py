@@ -61,7 +61,9 @@ from effdet.anchors import Anchors, AnchorLabeler
 
 torch.backends.cudnn.benchmark = True
 
-
+# 2025-05-07 dasom
+# import wandb
+# wandb.init(project="pnid", name="tf_efficientdet_d0")
 # The first arg parser parses out only the --config argument, this argument is used to
 # load a yaml file containing key-values that override the defaults for the main parser below
 config_parser = parser = argparse.ArgumentParser(description='Training Config', add_help=False)
@@ -71,19 +73,38 @@ parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 # Dataset / Model parameters
-parser.add_argument('root', metavar='DIR',
-                    help='path to dataset')
-parser.add_argument('--dataset', default='coco', type=str, metavar='DATASET',
+parser.add_argument(
+    # 'root', # 2025-05-08 dasom
+    '--root', # 2025-05-08 dasom
+    metavar='DIR',
+    # default='/mscoco', # coco training argument dasom 250507
+    default='/home/sysnova/pnid/doosan/efficientdet-pytorch/VOCdevkit', # coco training argument dasom 250507
+    help='path to dataset')
+parser.add_argument('--dataset', 
+                    # default='voc2007', 
+                    default='PNID250508v1', 
+                    type=str, metavar='DATASET',
                     help='Name of dataset to train (default: "coco"')
-parser.add_argument('--model', default='tf_efficientdet_d1', type=str, metavar='MODEL',
-                    help='Name of model to train (default: "tf_efficientdet_d1"')
+parser.add_argument(
+    '--model'
+    # , default='tf_efficientdet_d1'
+    # , default='tf_efficientdet_d0' # coco training argument dasom 250507
+    , default='efficientdet_d0' # 2025-05-08 dasom
+    , type=str, metavar='MODEL'
+    , help='Name of model to train (default: "tf_efficientdet_d1"')
 utils.add_bool_arg(parser, 'redundant-bias', default=None, help='override model config for redundant bias')
 utils.add_bool_arg(parser, 'soft-nms', default=None, help='override model config for soft-nms')
 parser.add_argument('--val-skip', type=int, default=0, metavar='N',
                     help='Skip every N validation samples.')
-parser.add_argument('--num-classes', type=int, default=None, metavar='N',
+parser.add_argument('--num-classes', type=int, 
+                    # default=None, 
+                    default=20, # 2025-05-08 dasom
+                    # default=6, # 2025-05-08 dasom
+                    metavar='N',
                     help='Override num_classes in model config if set. For fine-tuning from pretrained.')
-parser.add_argument('--pretrained', action='store_true', default=False,
+parser.add_argument('--pretrained', action='store_true', 
+                    # default=False,
+                    default=True, # 2025-05s-08 dasom
                     help='Start with pretrained version of specified network (if avail)')
 parser.add_argument('--no-pretrained-backbone', action='store_true', default=False,
                     help='Do not start with pretrained backbone weights, fully random.')
@@ -101,7 +122,10 @@ parser.add_argument('--interpolation', default='', type=str, metavar='NAME',
                     help='Image resize interpolation type (overrides model)')
 parser.add_argument('--fill-color', default=None, type=str, metavar='NAME',
                     help='Image augmentation fill (background) color ("mean" or int)')
-parser.add_argument('-b', '--batch-size', type=int, default=32, metavar='N',
+parser.add_argument('-b', '--batch-size', type=int, 
+                    # default=32, 
+                    default=8, # 2025-05-08 dasom
+                    metavar='N',
                     help='input batch size for training (default: 32)')
 parser.add_argument('--clip-grad', type=float, default=10.0, metavar='NORM',
                     help='Clip gradient norm (default: 10.0)')
@@ -109,7 +133,10 @@ parser.add_argument('--clip-mode', type=str, default='norm',
                     help='Gradient clipping mode. One of ("norm", "value", "agc")')
 
 # Optimizer parameters
-parser.add_argument('--opt', default='momentum', type=str, metavar='OPTIMIZER',
+parser.add_argument('--opt', 
+                    default='momentum', 
+                    # default='fusedmomentum', # coco training argument dasom 250507
+                    type=str, metavar='OPTIMIZER',
                     help='Optimizer (default: "momentum"')
 parser.add_argument('--opt-eps', default=None, type=float, metavar='EPSILON',
                     help='Optimizer Epsilon (default: None, optimizer default)')
@@ -121,8 +148,14 @@ parser.add_argument('--weight-decay', type=float, default=4e-5,
 # Learning rate schedule parameters
 parser.add_argument('--sched', default='cosine', type=str, metavar='SCHEDULER',
                     help='LR scheduler (default: "step"')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-                    help='learning rate (default: 0.01)')
+parser.add_argument(
+    '--lr', type=float
+    # , default=0.01
+    # , default=0.09 # coco training argument 250507 dasom
+    , default=0.008 # 2025-05-08 dasom
+    , metavar='LR'
+    , help='learning rate (default: 0.01)'
+)
 parser.add_argument('--lr-noise', type=float, nargs='+', default=None, metavar='pct, pct',
                     help='learning rate noise on/off epoch percentages')
 parser.add_argument('--lr-noise-pct', type=float, default=0.67, metavar='PERCENT',
@@ -137,7 +170,10 @@ parser.add_argument('--warmup-lr', type=float, default=0.0001, metavar='LR',
                     help='warmup learning rate (default: 0.0001)')
 parser.add_argument('--min-lr', type=float, default=1e-5, metavar='LR',
                     help='lower lr bound for cyclic schedulers that hit 0 (1e-5)')
-parser.add_argument('--epochs', type=int, default=300, metavar='N',
+parser.add_argument('--epochs', type=int, 
+                    # default=300, 
+                    default=100, # 2025-05-08 dasom
+                    metavar='N',
                     help='number of epochs to train (default: 2)')
 parser.add_argument('--start-epoch', default=None, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -172,14 +208,20 @@ utils.add_bool_arg(parser, 'jit-loss', default=None, help='override model config
 utils.add_bool_arg(parser, 'legacy-focal', default=None, help='override model config to use legacy focal loss')
 
 # Model Exponential Moving Average
-parser.add_argument('--model-ema', action='store_true', default=False,
+parser.add_argument('--model-ema', action='store_true', 
+                    # default=False,
+                    default=True, # coco training argument dasom 250507
                     help='Enable tracking moving average of model weights')
-parser.add_argument('--model-ema-decay', type=float, default=0.9998,
+parser.add_argument('--model-ema-decay', type=float, 
+                    # default=0.9998,
+                    default=0.9966, # 2025-05-08 dasom
                     help='decay factor for model weights moving average (default: 0.9998)')
 
 # Misc
-parser.add_argument('--sync-bn', action='store_true',
-                    help='Enable NVIDIA Apex or Torch synchronized BatchNorm.')
+parser.add_argument('--sync-bn', action='store_true'
+                    # , default=True # coco training argument dasom 250507
+                    , default=False # coco training argument dasom 250507
+                    , help='Enable NVIDIA Apex or Torch synchronized BatchNorm.')
 parser.add_argument('--dist-bn', type=str, default='',
                     help='Distribute BatchNorm stats between nodes after each epoch ("broadcast", "reduce", or "")')
 parser.add_argument('--seed', type=int, default=42, metavar='S',
@@ -192,7 +234,8 @@ parser.add_argument('-j', '--workers', type=int, default=4, metavar='N',
                     help='how many training processes to use (default: 1)')
 parser.add_argument('--save-images', action='store_true', default=False,
                     help='save images of input bathes every log interval for debugging')
-parser.add_argument('--amp', action='store_true', default=False,
+parser.add_argument('--amp', action='store_true', 
+                    default=False,
                     help='use NVIDIA Apex AMP or Native AMP for mixed precision training')
 parser.add_argument('--apex-amp', action='store_true', default=False,
                     help='Use NVIDIA Apex AMP mixed precision')
@@ -597,7 +640,8 @@ def train_epoch(
         if args.channels_last:
             input = input.contiguous(memory_format=torch.channels_last)
 
-        with amp_autocast():
+        # with amp_autocast():
+        with torch.amp.autocast(device_type='cuda'):
             output = model(input, target)
         loss = output['loss']
 
