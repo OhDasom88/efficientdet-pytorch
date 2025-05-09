@@ -62,8 +62,8 @@ from effdet.anchors import Anchors, AnchorLabeler
 torch.backends.cudnn.benchmark = True
 
 # 2025-05-07 dasom
-# import wandb
-# wandb.init(project="pnid", name="tf_efficientdet_d0")
+import wandb
+wandb.init(project="pnid", name="efficientdet")
 # The first arg parser parses out only the --config argument, this argument is used to
 # load a yaml file containing key-values that override the defaults for the main parser below
 config_parser = parser = argparse.ArgumentParser(description='Training Config', add_help=False)
@@ -89,7 +89,8 @@ parser.add_argument(
     '--model'
     # , default='tf_efficientdet_d1'
     # , default='tf_efficientdet_d0' # coco training argument dasom 250507
-    , default='efficientdet_d0' # 2025-05-08 dasom
+    # , default='efficientdet_d0' # 2025-05-08 dasom
+    , default='tf_efficientdet_d7x' # 2025-05-08 dasom
     , type=str, metavar='MODEL'
     , help='Name of model to train (default: "tf_efficientdet_d1"')
 utils.add_bool_arg(parser, 'redundant-bias', default=None, help='override model config for redundant bias')
@@ -98,8 +99,8 @@ parser.add_argument('--val-skip', type=int, default=0, metavar='N',
                     help='Skip every N validation samples.')
 parser.add_argument('--num-classes', type=int, 
                     # default=None, 
-                    default=20, # 2025-05-08 dasom
-                    # default=6, # 2025-05-08 dasom
+                    # default=20, # 2025-05-08 dasom
+                    default=7, # 2025-05-08 dasom pnid 250508v1
                     metavar='N',
                     help='Override num_classes in model config if set. For fine-tuning from pretrained.')
 parser.add_argument('--pretrained', action='store_true', 
@@ -124,7 +125,10 @@ parser.add_argument('--fill-color', default=None, type=str, metavar='NAME',
                     help='Image augmentation fill (background) color ("mean" or int)')
 parser.add_argument('-b', '--batch-size', type=int, 
                     # default=32, 
-                    default=8, # 2025-05-08 dasom
+                    # default=8, # 2025-05-08 dasom
+                    default=2, # 2025-05-08 dasom
+                    # default=64, # 2025-05-08 dasom
+                    # default=16, # 2025-05-08 dasom
                     metavar='N',
                     help='input batch size for training (default: 32)')
 parser.add_argument('--clip-grad', type=float, default=10.0, metavar='NORM',
@@ -172,7 +176,8 @@ parser.add_argument('--min-lr', type=float, default=1e-5, metavar='LR',
                     help='lower lr bound for cyclic schedulers that hit 0 (1e-5)')
 parser.add_argument('--epochs', type=int, 
                     # default=300, 
-                    default=100, # 2025-05-08 dasom
+                    # default=100, # 2025-05-08 dasom
+                    default=1000, # 2025-05-08 dasom
                     metavar='N',
                     help='number of epochs to train (default: 2)')
 parser.add_argument('--start-epoch', default=None, type=int, metavar='N',
@@ -232,7 +237,9 @@ parser.add_argument('--recovery-interval', type=int, default=0, metavar='N',
                     help='how many batches to wait before writing recovery checkpoint')
 parser.add_argument('-j', '--workers', type=int, default=4, metavar='N',
                     help='how many training processes to use (default: 1)')
-parser.add_argument('--save-images', action='store_true', default=False,
+parser.add_argument('--save-images', action='store_true', 
+                    # default=False,
+                    default=True, # 2025-05-08 dasom
                     help='save images of input bathes every log interval for debugging')
 parser.add_argument('--amp', action='store_true', 
                     default=False,
@@ -289,6 +296,7 @@ def get_clip_parameters(model, exclude_head=False):
 def main():
     utils.setup_default_logging()
     args, args_text = _parse_args()
+    wandb.config.update(args) # 2025-05-08 dasom
 
     args.pretrained_backbone = not args.no_pretrained_backbone
     args.prefetcher = not args.no_prefetcher
@@ -475,7 +483,9 @@ def main():
         )
         with open(os.path.join(output_dir, 'args.yaml'), 'w') as f:
             f.write(args_text)
-
+    # 2025-05-09 dasom
+    model.train()
+    wandb.watch(model) # 2025-05-08 dasom
     try:
         for epoch in range(start_epoch, num_epochs):
             if args.distributed:
@@ -629,6 +639,7 @@ def train_epoch(
     losses_m = utils.AverageMeter()
 
     model.train()
+    # wandb.watch(model) # 2025-05-08 dasom
     clip_params = get_clip_parameters(model, exclude_head='agc' in args.clip_mode)
     end = time.time()
     last_idx = len(loader) - 1
@@ -636,7 +647,9 @@ def train_epoch(
     for batch_idx, (input, target) in enumerate(loader):
         last_batch = batch_idx == last_idx
         data_time_m.update(time.time() - end)
-
+        # 2025-05-08 dasom
+        # 이미지로 다시 변환
+        # (input*loader.std+loader.mean)[0].cpu().numpy().transpose(1,2,0).astype(np.uint8)
         if args.channels_last:
             input = input.contiguous(memory_format=torch.channels_last)
 
@@ -687,6 +700,12 @@ def train_epoch(
                     f'LR: {lr:.3e}  '
                     f'Data: {data_time_m.val:.3f} ({data_time_m.avg:.3f})'
                 )
+                wandb.log({
+                    'train/loss': losses_m.val,
+                    'train/lr': lr,
+                    'train/time': batch_time_m.val,
+                    'train/data_time': data_time_m.val,
+                })
 
                 if args.save_images and output_dir:
                     torchvision.utils.save_image(
@@ -748,6 +767,12 @@ def validate(model, loader, args, evaluator=None, log_suffix=''):
                     f'Time: {batch_time_m.val:.3f} ({batch_time_m.avg:.3f})  '
                     f'Loss: {losses_m.val:>7.4f} ({losses_m.avg:>6.4f}) '
                 )
+
+                # 2025-05-08 dasom
+                wandb.log({
+                    'test/loss': losses_m.val,
+                    'test/time': batch_time_m.val,
+                })
 
     metrics = OrderedDict([('loss', losses_m.avg)])
     if evaluator is not None:

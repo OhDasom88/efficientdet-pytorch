@@ -343,21 +343,26 @@ class AnchorLabeler(object):
 
         cls_targets, box_targets, matches = self.target_assigner.assign(
             BoxList(self.anchors.boxes), BoxList(gt_boxes), gt_classes)
-
+        # 2025-05-08 dasom
+        # (box_targets.sum(axis=-1)!=0).sum().item() == (cls_targets>-1).sum().item() 2025-05-08 dasom
         # class labels start from 1 and the background class = -1
         cls_targets = (cls_targets - 1).long()
-
+        # (cls_targets > -1).sum() # 2025-05-08 dasom
         # Unpack labels.
         """Unpacks an array of cls/box into multiple scales."""
         count = 0
         for level in range(self.anchors.min_level, self.anchors.max_level + 1):
             feat_size = self.anchors.feat_sizes[level]
-            steps = feat_size[0] * feat_size[1] * self.anchors.get_anchors_per_location()
+            steps = feat_size[0] * feat_size[1] * self.anchors.get_anchors_per_location() # self.anchors.num_scales * len(self.anchors.aspect_ratios) 2025-05-08 dasom
             cls_targets_out.append(cls_targets[count:count + steps].reshape([feat_size[0], feat_size[1], -1]))
             box_targets_out.append(box_targets[count:count + steps].reshape([feat_size[0], feat_size[1], -1]))
             count += steps
 
         num_positives = (matches.match_results > -1).float().sum()
+        # 2025-05-08 dasom
+        # sum([(2**i)**2*9 for i in range(2,7)]) == matches.match_results.shape[0]
+        # (torch.concat([el.flatten() for el in cls_targets_out])>-1).sum()
+        # === (torch.concat([el.flatten() for el in box_targets_out])!=0).sum()//4
 
         return cls_targets_out, box_targets_out, num_positives
 

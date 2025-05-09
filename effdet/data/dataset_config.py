@@ -75,12 +75,16 @@ class PnId250508v1Cfg(PnIdCfg):
     splits: Dict[str, dict] = field(default_factory=lambda: dict(
         train=dict(
             split_filename='PNID250508v1/ImageSets/Main/train_250508v1.txt',
-            ann_filename='PNID250508v1/Annotations/%s.xml',
-            img_dir='PNID250508v1/JPEGImages', ),
+            # ann_filename='PNID250508v1/Annotations/%s.xml',
+            ann_filename='PNID250508v1/labels/%s.txt',
+            # img_dir='PNID250508v1/JPEGImages', ),
+            img_dir='PNID250508v1/pnid250508v1'),
         val=dict(
             split_filename='PNID250508v1/ImageSets/Main/val_250508v1.txt',
-            ann_filename='PNID250508v1/Annotations/%s.xml',
-            img_dir='PNID250508v1/JPEGImages'),
+            # ann_filename='PNID250508v1/Annotations/%s.xml',
+            ann_filename='PNID250508v1/labels/%s.txt',
+            # img_dir='PNID250508v1/JPEGImages'),
+            img_dir='PNID250508v1/pnid250508v1'),
         #test=dict(img_dir='JPEGImages')
     ))
 

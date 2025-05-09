@@ -79,6 +79,16 @@ class DetectionFastCollate:
                         target_tensor = target[tk]
                     target_tensor[i] = torch.tensor(tv, dtype=target_tensor.dtype)
 
+            # 2025-05-08 dasom
+            # from PIL import ImageDraw
+            # img = Image.fromarray(batch[i][0].transpose(1, 2, 0))
+            # draw = ImageDraw.Draw(img)
+            # # for bbox in batch[i][1].get('bbox').tolist():
+            # for bbox in labeler_inputs['bbox'].tolist():
+            #     y1, x1, y2, x2 = bbox
+            #     draw.rectangle([x1, y1, x2, y2], outline='red', width=2)
+            # img.save(f'test.png')
+
             if self.anchor_labeler is not None:
                 cls_targets, box_targets, num_positives = self.anchor_labeler.label_anchors(
                     labeler_inputs['bbox'], labeler_inputs['cls'], filter_valid=False)
@@ -94,9 +104,13 @@ class DetectionFastCollate:
                     labeler_outputs[f'label_cls_{j}'][i] = ct
                     labeler_outputs[f'label_bbox_{j}'][i] = bt
                 labeler_outputs['label_num_positives'][i] = num_positives
+        # 2025-05-08 dasom
+        # labeler_outputs['label_num_positives'][-1].item()
+        # = (torch.concat([el.flatten() for el in cls_targets])>-1).sum()
+        # = (torch.concat([el.flatten() for el in box_targets])!=0).sum()//4
+
         if labeler_outputs:
             target.update(labeler_outputs)
-
         return img_tensor, target
 
 

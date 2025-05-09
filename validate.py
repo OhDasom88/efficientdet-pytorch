@@ -48,30 +48,37 @@ parser.add_argument(
     '--root', # 2025-05-08 dasom
     metavar='DIR',
     # default='VOCdevkit', # 2025-05-08 dasom
-    default='VOCdevkit', # 2025-05-08 dasom
+    default='/home/sysnova/pnid/doosan/efficientdet-pytorch/VOCdevkit', # 2025-05-08 dasom
     help='path to dataset root')
 parser.add_argument('--dataset', 
                     # default='coco', # 2025-05-08 dasom
-                    default='voc2007', # 2025-05-08 dasom
+                    # default='voc2007', # 2025-05-08 dasom
+                    default='PNID250508v1', # 2025-05-08 dasom
                     type=str, metavar='DATASET',
                     help='Name of dataset (default: "coco"')
 parser.add_argument('--split', default='val',
                     help='validation split')
 parser.add_argument('--model', '-m', metavar='MODEL', 
                     # default='tf_efficientdet_d1', # 2025-05-08 dasom
-                    default='efficientdet_d0', # 2025-05-08 dasom
+                    # default='efficientdet_d0', # 2025-05-08 dasom
+                    default='tf_efficientdet_d7x', # 2025-05-09 dasom
                     help='model architecture (default: tf_efficientdet_d1)')
 add_bool_arg(parser, 'redundant-bias', default=None,
                     help='override model config for redundant bias layers')
 add_bool_arg(parser, 'soft-nms', default=None, help='override model config for soft-nms')
 parser.add_argument('--num-classes', type=int, 
                     # default=None, # 2025-05-08 dasom
-                    default=20, # 2025-05-08 dasom
+                    # default=20, # 2025-05-08 dasom
+                    default=7, # 2025-05-08 dasom
                     metavar='N',
                     help='Override num_classes in model config if set. For fine-tuning from pretrained.')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('-b', '--batch-size', default=128, type=int,
+parser.add_argument('-b', '--batch-size', 
+                    # default=128, 
+                    default=2, # 2025-05-08 dasom
+                    # default=64, # 2025-05-09 dasom
+                    type=int,
                     metavar='N', help='mini-batch size (default: 128)')
 parser.add_argument('--img-size', default=None, type=int,
                     metavar='N', help='Input image dimension, uses model default if empty')
@@ -87,7 +94,11 @@ parser.add_argument('--log-freq', default=10, type=int,
                     metavar='N', help='batch logging frequency (default: 10)')
 parser.add_argument('--checkpoint', 
                     # default='', # 2025-05-08 dasom
-                    default='/home/sysnova/pnid/doosan/efficientdet-pytorch/output/train/20250507-133937-efficientdet_d0/model_best.pth.tar', 
+                    # default='/home/sysnova/pnid/doosan/efficientdet-pytorch/output/train/20250507-133937-efficientdet_d0/model_best.pth.tar', 
+                    # default='/home/sysnova/pnid/doosan/efficientdet-pytorch/output/train/20250508-042937-efficientdet_d0/model_best.pth.tar', # 2025-05-08 dasom
+                    # default='/home/sysnova/pnid/doosan/efficientdet-pytorch/output/train/20250508-112033-efficientdet_d0/model_best.pth.tar', # 2025-05-08 dasom
+                    # default='/home/sysnova/pnid/doosan/efficientdet-pytorch/output/train/20250508-112033-efficientdet_d0/last.pth.tar', # 2025-05-08 dasom
+                    default='/home/sysnova/pnid/doosan/efficientdet-pytorch/output/train/20250508-123728-tf_efficientdet_d7x/model_best.pth.tar', # 2025-05-09 dasom
                     type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
@@ -148,6 +159,8 @@ def validate(args):
     print('Model %s created, param count: %d' % (args.model, param_count))
 
     bench = bench.cuda()
+    # device = torch.device('cuda:1')
+    # bench.to(device)
 
     if args.torchscript:
         assert not args.apex_amp, \
@@ -182,6 +195,7 @@ def validate(args):
         std=input_config['std'],
         num_workers=args.workers,
         pin_mem=args.pin_mem,
+        # device=device, # 2025-05-09 dasom 학습할때 0번 GPU를ㅋ 쓰고 있어서 추론할때는 1번 GPU를 써야함
     )
 
     evaluator = create_evaluator(args.dataset, dataset, pred_yxyx=False)
@@ -193,6 +207,7 @@ def validate(args):
         for i, (input, target) in enumerate(loader):
             # with amp_autocast(): # 2025-05-08 dasom
             with torch.amp.autocast(device_type='cuda'): # 2025-05-08 dasom
+            # with torch.amp.autocast(device_type=device, dtype=torch.bfloat16): # 2025-05-09 dasom
                 # 2025-05-08 dasom
                 # output.shape = batch_size, 100, 6
                 # 6 = (x1, y1, x2, y2, score, class).length
@@ -216,28 +231,42 @@ def validate(args):
         # 정답은 초록, 예측은 빨강
         # parser = dataset.parser
         from PIL import Image, ImageDraw
-
+        import numpy as np
         cat_id_to_label = {v: k for k, v in dataset.parser.cat_id_to_label.items()}
-        for img_idx, preds in zip(target.get('img_idx').tolist(), output.tolist()):
+        for img_idx, preds, inp in zip(
+            target.get('img_idx').tolist(), 
+            output.tolist(),
+            input.tolist()
+            ):
             img_info = dataset.parser.img_infos[img_idx]
             img_path = dataset.data_dir / img_info.get('file_name')
             img = Image.open(img_path).convert('RGB')
-            draw = ImageDraw.Draw(img)
+            img_copy = img.copy()
+            draw = ImageDraw.Draw(img_copy)
             ann = dataset.parser.get_ann_info(img_idx)
             bboxes = ann.get('bbox')
             clses = ann.get('cls')
-            for bbox, cls in zip(bboxes.tolist(), clses.tolist()):
+            from tqdm import tqdm
+            for bbox, cls in tqdm(zip(bboxes.tolist(), clses.tolist()), desc='정답'):
                 y1, x1, y2, x2 = bbox # 왜 y1, x1, y2, x2 순서인지 모르겠음, 2025-05-08 dasom
                 draw.rectangle([x1, y1, x2, y2], outline='green', width=2)
                 draw.text((x1, y1), str(cat_id_to_label[cls]), fill='green')
+            # img_copy.save(f'gt.png')
 
-            for x1, y1, x2, y2, score, cls in preds:
-                if score < 0.2:
-                    continue
-                draw.rectangle([x1, y1, x2, y2], outline='red', width=1)
+            # input_img = np.array(inp).astype(np.uint8).transpose(1,2,0)
+            # img = Image.fromarray(input_img)
+
+            # img_copy = img.copy()
+            # draw = ImageDraw.Draw(img_copy)
+            for x1, y1, x2, y2, score, cls in tqdm(preds, desc='예측'):
+            # for y1, x1, y2, x2, score, cls in tqdm(preds, desc='예측'):
+                # if score < 0.2:
+                #     continue
+                draw.rectangle([x1, y1, x2, y2], outline='red', width=2)
                 draw.text((x1, y1), f'{str(cat_id_to_label[cls])} {score:.2f}', fill='red')
 
-            img.save(f'{img_idx}.png')
+            img_copy.save(f'pred.png')
+            break
             # 여기까지 마지막 배치의 예측결과 시각화 2025-05-08 dasom
 
     mean_ap = 0.

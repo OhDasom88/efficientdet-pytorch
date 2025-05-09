@@ -58,6 +58,7 @@ class PnId250508v1ParserCfg:
     ann_filename: str
     img_filename: str = '%.jpg'
     keep_difficult: bool = True
+    classes: list = None
     # classes: list = [
     #     'Circular looking',
     #     'Valve',
@@ -67,7 +68,6 @@ class PnId250508v1ParserCfg:
     #     'Control Valve'
     #     'Undefined'
     # ]
-    classes: list = None
     add_background: bool = True
     has_labels: bool = True
     bbox_yxyx: bool = True

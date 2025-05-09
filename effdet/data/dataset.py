@@ -46,7 +46,16 @@ class DetectionDatset(data.Dataset):
         img = Image.open(img_path).convert('RGB')
         if self.transform is not None:
             img, target = self.transform(img, target)
-
+        # if target.get('bbox').shape[0] != 79:
+        #     # 2025-05-08 dasom
+        #     from PIL import ImageDraw
+        #     print(target.get('bbox').shape)
+        #     img_ = Image.fromarray(img.transpose(1,2,0))
+        #     draw = ImageDraw.Draw(img_)
+        #     for bbox in target.get('bbox').tolist():
+        #         y1, x1, y2, x2 = bbox
+        #         draw.rectangle([x1, y1, x2, y2], outline='red', width=2)
+        #     img_.save(f'test.png')
         return img, target
 
     def __len__(self):
